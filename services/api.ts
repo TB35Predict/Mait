@@ -1,5 +1,4 @@
-
-import type { User, Task, AdminSettings, Transaction, UserTask } from '../types';
+import type { User, Task, AdminSettings, Transaction, UserTask, WithdrawalRequest } from '../types';
 
 // --- MOCK DATABASE ---
 let tasks: Task[] = [
@@ -15,16 +14,17 @@ let users: User[] = [
   {
     id: 'user001',
     username: 'mait_fan_7',
-    points: 700,
+    points: 2100,
     tasks: [
       { taskId: 1, completed: true, completedAt: new Date().toISOString() },
+      { taskId: 2, completed: true, completedAt: new Date().toISOString() },
       { taskId: 4, completed: true, completedAt: new Date().toISOString() },
-      { taskId: 2, completed: false },
       { taskId: 3, completed: false },
       { taskId: 5, completed: false },
       { taskId: 6, completed: false },
     ],
-    melbetId: '12345678'
+    melbetId: '12345678',
+    withdrawalStatus: 'none',
   },
 ];
 
@@ -38,11 +38,33 @@ let transactions: Transaction[] = [
     { id: 2, userId: 'user001', type: 'credit', amount: 200, reason: "Canal Telegram", timestamp: new Date().toISOString()},
 ];
 
+let withdrawalRequests: WithdrawalRequest[] = [];
+
 const MOCK_API_DELAY = 500;
 
 const delay = <T,>(data: T): Promise<T> => new Promise(resolve => setTimeout(() => resolve(data), MOCK_API_DELAY));
 
 // --- USER API ---
+export const loginOrRegisterUser = async (username: string): Promise<User> => {
+    let user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+
+    if (user) {
+        return delay(user);
+    }
+
+    // Create new user if not found
+    const newUser: User = {
+        id: username.toLowerCase() + '_' + Date.now(), // Unique ID
+        username: username,
+        points: 0,
+        tasks: tasks.map(task => ({ taskId: task.id, completed: false })),
+        withdrawalStatus: 'none',
+    };
+    users.push(newUser);
+    return delay(newUser);
+}
+
+
 export const getUserData = (userId: string): Promise<User | undefined> => delay(users.find(u => u.id === userId));
 export const getTasks = (): Promise<Task[]> => delay(tasks);
 
@@ -78,13 +100,34 @@ export const updateUserWallet = async (userId: string, ids: { walletId?: string;
     return delay(user);
 }
 
+export const requestWithdrawal = async (userId: string): Promise<{ success: boolean; user: User | null }> => {
+    const user = users.find(u => u.id === userId);
+    if (!user || user.withdrawalStatus !== 'none') {
+        return delay({ success: false, user });
+    }
+    
+    user.withdrawalStatus = 'pending';
+    const newRequest: WithdrawalRequest = {
+        id: withdrawalRequests.length + 1,
+        userId: user.id,
+        username: user.username,
+        points: user.points,
+        status: 'pending',
+        timestamp: new Date().toISOString(),
+    };
+    withdrawalRequests.push(newRequest);
+
+    return delay({ success: true, user });
+}
+
+
 // --- ADMIN API ---
 export const adminLogin = (password: string): Promise<boolean> => {
     return delay(password === 'Scott'); // Simulating .env ADMIN_PASSWORD
 };
 
-export const getAdminData = (): Promise<{ users: User[], tasks: Task[], settings: AdminSettings, transactions: Transaction[] }> => {
-    return delay({ users, tasks, settings, transactions });
+export const getAdminData = (): Promise<{ users: User[], tasks: Task[], settings: AdminSettings, transactions: Transaction[], withdrawalRequests: WithdrawalRequest[] }> => {
+    return delay({ users, tasks, settings, transactions, withdrawalRequests });
 };
 
 export const addTask = (task: Omit<Task, 'id'>): Promise<Task> => {
@@ -131,4 +174,32 @@ export const adjustUserPoints = (userId: string, amount: number, reason: string)
     });
 
     return delay(user);
+};
+
+export const processWithdrawalRequest = async (requestId: number, status: 'approved' | 'rejected'): Promise<boolean> => {
+    const request = withdrawalRequests.find(r => r.id === requestId);
+    if (!request) return delay(false);
+
+    const user = users.find(u => u.id === request.userId);
+    if (!user) return delay(false);
+
+    request.status = status;
+    user.withdrawalStatus = status;
+
+    if (status === 'approved') {
+        const withdrawalAmount = request.points;
+        user.points = 0; // Reset points after withdrawal
+        transactions.push({
+            id: transactions.length + 1,
+            userId: user.id,
+            type: 'debit',
+            amount: withdrawalAmount,
+            reason: 'Retrait Airdrop Approuvé',
+            timestamp: new Date().toISOString(),
+        });
+    } else { // On rejection, reset to allow another request. Or keep it rejected.
+        user.withdrawalStatus = 'none'; // Let's allow them to try again.
+    }
+    
+    return delay(true);
 };

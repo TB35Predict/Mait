@@ -21,6 +21,7 @@ export interface User {
   walletId?: string;
   natcashId?: string;
   melbetId?: string;
+  withdrawalStatus: 'none' | 'pending' | 'approved' | 'rejected';
 }
 
 export interface AdminSettings {
@@ -35,4 +36,13 @@ export interface Transaction {
   amount: number;
   reason: string;
   timestamp: string;
+}
+
+export interface WithdrawalRequest {
+    id: number;
+    userId: string;
+    username: string;
+    points: number;
+    status: 'pending' | 'approved' | 'rejected';
+    timestamp: string;
 }

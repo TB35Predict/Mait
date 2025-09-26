@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -7,6 +6,7 @@ import { Button } from '../components/Button';
 import { LockIcon } from '../components/Icons';
 
 const AdminLogin: React.FC = () => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,9 +32,20 @@ const AdminLogin: React.FC = () => {
         <div className="text-center mb-6">
             <LockIcon className="w-12 h-12 mx-auto text-brand-primary mb-4"/>
             <h1 className="text-2xl font-bold">Accès Administrateur</h1>
-            <p className="text-dark-text-secondary">Veuillez entrer le mot de passe.</p>
+            <p className="text-dark-text-secondary">Veuillez entrer vos identifiants.</p>
         </div>
         <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="email" className="sr-only">Adresse e-mail</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
+              placeholder="Adresse e-mail"
+            />
+          </div>
           <div className="mb-4">
             <label htmlFor="password" className="sr-only">Mot de passe</label>
             <input

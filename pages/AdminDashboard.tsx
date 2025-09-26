@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Task, AdminSettings, Transaction } from '../types';
+import { User, Task, AdminSettings, Transaction, WithdrawalRequest } from '../types';
 import * as api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +19,7 @@ const AdminDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [settings, setSettings] = useState<AdminSettings>({ listingDate: '', withdrawalStartDate: '' });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { logout } = useAuth();
@@ -31,6 +32,7 @@ const AdminDashboard: React.FC = () => {
     setTasks(data.tasks);
     setSettings(data.settings);
     setTransactions(data.transactions);
+    setWithdrawalRequests(data.withdrawalRequests);
     setLoading(false);
   }, []);
 
@@ -46,7 +48,7 @@ const AdminDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'users':
-        return <AdminUsers users={users} refreshData={fetchData} />;
+        return <AdminUsers users={users} withdrawalRequests={withdrawalRequests} refreshData={fetchData} />;
       case 'tasks':
         return <AdminTasks tasks={tasks} refreshData={fetchData} />;
       case 'settings':

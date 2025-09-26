@@ -1,28 +1,35 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { User, Task, UserTask } from '../types';
 import * as api from '../services/api';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { TaskItem } from '../components/TaskItem';
 import { WalletModal } from '../components/WalletModal';
-import { InfoIcon, TrophyIcon, WalletIcon, ClockIcon, AlertTriangleIcon } from '../components/Icons';
+import { InfoIcon, TrophyIcon, WalletIcon, ClockIcon, AlertTriangleIcon, CheckCircleIcon } from '../components/Icons';
+import { Button } from '../components/Button';
+
 
 const UserDashboard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [withdrawalFeedback, setWithdrawalFeedback] = useState('');
+  const { userId } = useParams<{ userId: string }>();
 
-  const MOCKED_USER_ID = 'user001';
   const WITHDRAWAL_THRESHOLD = 2000; // Example points threshold
   const isEligible = user ? user.points >= WITHDRAWAL_THRESHOLD : false;
 
   const fetchData = useCallback(async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [userData, tasksData] = await Promise.all([
-        api.getUserData(MOCKED_USER_ID),
+        api.getUserData(userId),
         api.getTasks()
       ]);
       if (userData) setUser(userData);
@@ -32,14 +39,15 @@ const UserDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const handleCompleteTask = async (taskId: number) => {
-    const updatedUser = await api.completeTask(MOCKED_USER_ID, taskId);
+    if (!userId) return;
+    const updatedUser = await api.completeTask(userId, taskId);
     if (updatedUser) {
       setUser(updatedUser);
     }
@@ -53,6 +61,19 @@ const UserDashboard: React.FC = () => {
     }
     setIsModalOpen(false);
   }
+  
+  const handleRequestWithdrawal = async () => {
+    if(!user) return;
+    setWithdrawalFeedback('Traitement en cours...');
+    const result = await api.requestWithdrawal(user.id);
+    if (result.success && result.user) {
+        setUser(result.user);
+        setWithdrawalFeedback('Votre demande a été envoyée avec succès et est en cours de révision.');
+    } else {
+        setWithdrawalFeedback("Échec de la demande. Vous avez peut-être déjà une demande en attente.");
+    }
+  }
+
 
   const getTaskStatus = (taskId: number): UserTask | undefined => {
     return user?.tasks.find(t => t.taskId === taskId);
@@ -65,7 +86,7 @@ const UserDashboard: React.FC = () => {
   }
   
   if (!user) {
-    return <div className="text-center mt-10">Utilisateur non trouvé.</div>;
+    return <div className="text-center mt-10 p-4">Utilisateur non trouvé. Veuillez vous connecter via la page d'accueil.</div>;
   }
 
   return (
@@ -106,6 +127,38 @@ const UserDashboard: React.FC = () => {
           <span className="block sm:inline">Des frais de gaz de 200 HTG sont requis avant de pouvoir effectuer un retrait. Vous devez être éligible pour procéder.</span>
         </div>
       </div>
+      
+       {isEligible && (
+          <Card className="mb-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-xl font-bold text-green-400">Félicitations, vous êtes éligible pour le retrait !</h3>
+                    <p className="text-dark-text-secondary">Vous pouvez maintenant soumettre votre demande de retrait.</p>
+                </div>
+                {user.withdrawalStatus === 'none' && (
+                    <Button onClick={handleRequestWithdrawal}>
+                        Demander un Retrait
+                    </Button>
+                )}
+            </div>
+            {withdrawalFeedback && (
+                <p className="mt-4 text-center md:text-left text-brand-primary p-3 bg-brand-primary/10 rounded-md">{withdrawalFeedback}</p>
+            )}
+             {user.withdrawalStatus === 'pending' && (
+                <div className="mt-4 flex items-center gap-2 text-yellow-400 p-3 bg-yellow-400/10 rounded-md">
+                    <ClockIcon className="w-5 h-5"/>
+                    <span>Votre demande de retrait est en cours de révision.</span>
+                </div>
+            )}
+            {user.withdrawalStatus === 'approved' && (
+                <div className="mt-4 flex items-center gap-2 text-green-400 p-3 bg-green-400/10 rounded-md">
+                    <CheckCircleIcon className="w-5 h-5"/>
+                    <span>Votre demande de retrait a été approuvée ! Les fonds seront envoyés prochainement.</span>
+                </div>
+            )}
+          </Card>
+       )}
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card title="Liste des Tâches">
