@@ -1,0 +1,5 @@
+{
+  "name": "MAIT Airdrop Manager",
+  "description": "An application to manage the MAIT airdrop for promoting Melbet in Haiti. It includes a user dashboard to complete tasks and an admin panel to manage the airdrop.",
+  "requestFramePermissions": []
+}
